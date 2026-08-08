@@ -1,1 +1,7 @@
 .venv/
+.env
+.ultralytics/
+.matplotlib/
+Ultralytics/
+yolo11n.pt
+__pycache__/
