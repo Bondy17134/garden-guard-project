@@ -88,7 +88,7 @@ try:
 
         # YOLO works faster on a smaller copy; display remains reasonably clear.
         inference_frame = cv2.resize(frame, (1280, 960))
-        results = model(inference_frame, conf=0.5, verbose=False)
+        results = model(inference_frame, conf=0.75, verbose=False)
         annotated_frame = results[0].plot()
 
         cv2.imshow("Camera — YOLO", annotated_frame)
