@@ -79,7 +79,7 @@ rtsp = f"rtsp://{username}:{password}@{camera_ip}:554/h264Preview_01_main"
 
 HOME_SERVER_HOST = "192.168.0.237"
 HOME_SERVER_USER = "bond"
-HOME_SERVER_KEY = r"C:\Users\kunan\.ssh\id_ed25519"
+HOME_SERVER_KEY = r"C:\Users\kunan\.ssh\garden_guard_home_server"
 HOME_SERVER_FOLDER = "/home/bond/data/garden-guard/images"
 
 snapshots_dir = project_dir / "storage" / "images"
@@ -87,7 +87,7 @@ snapshots_dir.mkdir(parents=True, exist_ok=True)
 
 last_saved = 0
 SAVE_COOLDOWN_SECONDS = 30
-INTERESTING_CLASSES = {"bird"}
+INTERESTING_CLASSES = {"person"}
 
 model = YOLO("yolo11n.pt")
 camera = LatestFrameCamera(rtsp)
@@ -103,6 +103,7 @@ try:
         # YOLO works faster on a smaller copy; display remains reasonably clear.
         inference_frame = cv2.resize(frame, (1280, 960))
         results = model(inference_frame, conf=0.75, verbose=False)
+        annotated_frame = results[0].plot()
 
         
         for box in results[0].boxes:
@@ -110,15 +111,20 @@ try:
             label = model.names[class_id]
             confidence = float(box.conf[0])
 
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            frame_width = inference_frame.shape[1]
+            object_center_x = (x1 + x2) / 2
+
             if (
                 label in INTERESTING_CLASSES
                 and confidence >= 0.65
                 and time.time() - last_saved >= SAVE_COOLDOWN_SECONDS
+                and frame_width * 0.2 < object_center_x < frame_width * 0.8
             ):
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 filename = snapshots_dir / f"{timestamp}_{label}_{confidence:.2f}.jpg"
 
-                cv2.imwrite(str(filename), frame)
+                cv2.imwrite(str(filename), annotated_frame)
                 print(f"Saved locally: {filename}")
 
                 try:
@@ -141,7 +147,6 @@ try:
                 last_saved = time.time()
                 break
 
-        annotated_frame = results[0].plot()
 
         cv2.imshow("Camera — YOLO", annotated_frame)
 
