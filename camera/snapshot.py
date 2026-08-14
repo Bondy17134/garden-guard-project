@@ -19,39 +19,3 @@ SAVE_COOLDOWN_SECONDS = 30
 INTERESTING_CLASSES = {"bird"}
 
 results = model(inference_frame, conf=0.65, verbose=False)
-
-for box in results[0].boxes:
-    class_id = int(box.cls[0])
-    label = model.names[class_id]
-    confidence = float(box.conf[0])
-
-    if (
-        label in INTERESTING_CLASSES
-        and confidence >= 0.65
-        and time.time() - last_saved >= SAVE_COOLDOWN_SECONDS
-    ):
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = snapshots_dir / f"{timestamp}_{label}_{confidence:.2f}.jpg"
-
-        cv2.imwrite(str(filename), frame)
-        print(f"Saved locally: {filename}")
-
-        try:
-            transport = paramiko.Transport((HOME_SERVER_HOST, 22))
-            private_key = paramiko.Ed25519Key.from_private_key_file(HOME_SERVER_KEY)
-            transport.connect(username=HOME_SERVER_USER, pkey=private_key)
-
-            sftp = paramiko.SFTPClient.from_transport(transport)
-            remote_file = f"{HOME_SERVER_FOLDER}/{filename.name}"
-            sftp.put(str(filename), remote_file)
-
-            sftp.close()
-            transport.close()
-
-            print(f"Copied to home server: {remote_file}")
-
-        except Exception as error:
-            print(f"Home-server upload failed: {error}")
-
-        last_saved = time.time()
-        break
