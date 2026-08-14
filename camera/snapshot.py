@@ -1,8 +1,11 @@
-from datetime import datetime, time
-from pyexpat import model
-
+from datetime import datetime
+import time
 import cv2
 
+HOME_SERVER_HOST = "192.168.0.237"  
+HOME_SERVER_USER = "bond"
+HOME_SERVER_KEY = r"C:\Users\kunan\.ssh\id_ed25519"  # Use your actual private-key path
+HOME_SERVER_FOLDER = "/home/bond/data/garden-guard/images"
 
 snapshots_dir = project_dir / "storage" / "images"
 snapshots_dir.mkdir(parents=True, exist_ok=True)
