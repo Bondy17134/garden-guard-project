@@ -1,6 +1,10 @@
+from pathlib import Path
+import paramiko
 from datetime import datetime
 import time
 import cv2
+
+project_dir = Path(__file__).resolve().parents[1]
 
 HOME_SERVER_HOST = "192.168.0.237"  
 HOME_SERVER_USER = "bond"
@@ -30,7 +34,24 @@ for box in results[0].boxes:
         filename = snapshots_dir / f"{timestamp}_{label}_{confidence:.2f}.jpg"
 
         cv2.imwrite(str(filename), frame)
-        print(f"Saved: {filename}")
+        print(f"Saved locally: {filename}")
+
+        try:
+            transport = paramiko.Transport((HOME_SERVER_HOST, 22))
+            private_key = paramiko.Ed25519Key.from_private_key_file(HOME_SERVER_KEY)
+            transport.connect(username=HOME_SERVER_USER, pkey=private_key)
+
+            sftp = paramiko.SFTPClient.from_transport(transport)
+            remote_file = f"{HOME_SERVER_FOLDER}/{filename.name}"
+            sftp.put(str(filename), remote_file)
+
+            sftp.close()
+            transport.close()
+
+            print(f"Copied to home server: {remote_file}")
+
+        except Exception as error:
+            print(f"Home-server upload failed: {error}")
 
         last_saved = time.time()
         break
