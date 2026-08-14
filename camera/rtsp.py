@@ -1,16 +1,68 @@
-import cv2
 import os
-from dotenv import load_dotenv
+import time
+import threading
 from pathlib import Path
 from urllib.parse import quote
 
-# Keep model-library settings and caches with the project instead of the user's profile.
+# Must be set BEFORE importing cv2.
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+
+import cv2
+from dotenv import load_dotenv
+
+# Keep model-library settings and caches inside this project.
 project_dir = Path(__file__).resolve().parents[1]
 (project_dir / ".matplotlib").mkdir(exist_ok=True)
+
 os.environ.setdefault("YOLO_CONFIG_DIR", str(project_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(project_dir / ".matplotlib"))
 
 from ultralytics import YOLO
+
+
+class LatestFrameCamera:
+    def __init__(self, stream_url):
+        self.stream_url = stream_url
+        self.frame = None
+        self.lock = threading.Lock()
+        self.running = True
+        self.thread = threading.Thread(target=self._read_frames, daemon=True)
+        self.thread.start()
+
+    def _read_frames(self):
+        while self.running:
+            cap = cv2.VideoCapture(self.stream_url, cv2.CAP_FFMPEG)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+            if not cap.isOpened():
+                print("Could not connect — retrying in 2 seconds...")
+                time.sleep(2)
+                continue
+
+            print("RTSP connected using TCP.")
+
+            while self.running:
+                ret, frame = cap.read()
+
+                if not ret:
+                    print("Stream dropped — reconnecting...")
+                    break
+
+                # Replace any old frame with the newest camera frame.
+                with self.lock:
+                    self.frame = frame
+
+            cap.release()
+            time.sleep(2)
+
+    def get_latest_frame(self):
+        with self.lock:
+            return None if self.frame is None else self.frame.copy()
+
+    def stop(self):
+        self.running = False
+        self.thread.join(timeout=3)
+
 
 load_dotenv()
 
@@ -23,28 +75,27 @@ if not all([username, password, camera_ip]):
 
 rtsp = f"rtsp://{username}:{password}@{camera_ip}:554/h264Preview_01_main"
 
-# The nano model is a good lightweight starting point for real-time detection.
-# It is downloaded once and cached locally on its first use.
 model = YOLO("yolo11n.pt")
+camera = LatestFrameCamera(rtsp)
 
-cap = cv2.VideoCapture(rtsp)
+try:
+    while True:
+        frame = camera.get_latest_frame()
 
-if not cap.isOpened():
-    raise RuntimeError("Failed to open RTSP stream. Please check the camera credentials and IP address.")
+        if frame is None:
+            time.sleep(0.01)
+            continue
 
-while True:
-    ret, frame = cap.read()
+        # YOLO works faster on a smaller copy; display remains reasonably clear.
+        inference_frame = cv2.resize(frame, (1280, 960))
+        results = model(inference_frame, conf=0.5, verbose=False)
+        annotated_frame = results[0].plot()
 
-    if not ret:
-        break
+        cv2.imshow("Camera — YOLO", annotated_frame)
 
-    results = model(frame, conf=0.5, verbose=False)
-    annotated_frame = results[0].plot()
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
 
-    cv2.imshow("Camera — YOLO", annotated_frame)
-
-    if cv2.waitKey(1) == ord("q"):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+finally:
+    camera.stop()
+    cv2.destroyAllWindows()
