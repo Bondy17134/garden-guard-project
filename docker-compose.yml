@@ -1,0 +1,9 @@
+services:
+  garden-guard:
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ./storage:/app/storage

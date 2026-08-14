@@ -1,0 +1,48 @@
+name: CI and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Validate and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Check Python files compile
+        run: python -m compileall -q camera
+      - name: Build container image
+        run: docker build --tag garden-guard:ci .
+
+  deploy:
+    name: Deploy to home server
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, garden-guard]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy release files
+        env:
+          HOME_SERVER_DEPLOY_PATH: ${{ vars.HOME_SERVER_DEPLOY_PATH }}
+        run: |
+          mkdir -p "$HOME_SERVER_DEPLOY_PATH"
+          rsync -a --exclude '.git/' --exclude '.env' --exclude 'storage/' --exclude '.venv/' \
+            ./ "$HOME_SERVER_DEPLOY_PATH/"
+      - name: Start updated service
+        env:
+          HOME_SERVER_DEPLOY_PATH: ${{ vars.HOME_SERVER_DEPLOY_PATH }}
+        run: |
+          cd "$HOME_SERVER_DEPLOY_PATH"
+          docker compose up -d --build --remove-orphans

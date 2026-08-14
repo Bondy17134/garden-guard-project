@@ -1,0 +1,11 @@
+.git/
+.github/
+.venv/
+.env
+.matplotlib/
+.ultralytics/
+Ultralytics/
+storage/
+__pycache__/
+*.pyc
+yolo11n.pt

@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
 import time
-import paramiko
 import threading
 from pathlib import Path
 from urllib.parse import quote
@@ -77,47 +76,35 @@ if not all([username, password, camera_ip]):
 
 rtsp = f"rtsp://{username}:{password}@{camera_ip}:554/h264Preview_01_main"
 
-HOME_SERVER_HOST = "192.168.0.237"
-HOME_SERVER_USER = "bond"
-HOME_SERVER_KEY = r"C:\Users\kunan\.ssh\garden_guard_home_server"
-HOME_SERVER_FOLDER = "/home/bond/data/garden-guard/images"
-
 snapshots_dir = project_dir / "storage" / "images"
 snapshots_dir.mkdir(parents=True, exist_ok=True)
 
 last_saved = 0
-SAVE_COOLDOWN_SECONDS = 30
-INTERESTING_CLASSES = {"person"}
-VISIT_END_SECONDS = 3
+SAVE_COOLDOWN_SECONDS = int(os.getenv("SAVE_COOLDOWN_SECONDS", "30"))
+INTERESTING_CLASSES = {
+    label.strip()
+    for label in os.getenv(
+        "INTERESTING_CLASSES",
+        "bird,cat,dog,horse,sheep,cow,elephant,bear,zebra,giraffe,person",
+    ).split(",")
+    if label.strip()
+}
+CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
+VISIT_END_SECONDS = float(os.getenv("VISIT_END_SECONDS", "3"))
+SHOW_WINDOW = os.getenv("SHOW_WINDOW", "false").lower() == "true"
 active_visit = None
 
-model = YOLO("yolo11n.pt")
+model = YOLO(os.getenv("YOLO_MODEL", "yolo11n.pt"))
 camera = LatestFrameCamera(rtsp)
 
-def save_and_upload(image, label, confidence):
+def save_visit_image(image, label, confidence):
     global last_saved
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = snapshots_dir / f"{timestamp}_{label}_{confidence:.2f}.jpg"
 
     cv2.imwrite(str(filename), image)
-    print(f"Saved best visit image locally: {filename}")
-
-    try:
-        transport = paramiko.Transport((HOME_SERVER_HOST, 22))
-        private_key = paramiko.Ed25519Key.from_private_key_file(HOME_SERVER_KEY)
-        transport.connect(username=HOME_SERVER_USER, pkey=private_key)
-
-        sftp = paramiko.SFTPClient.from_transport(transport)
-        remote_file = f"{HOME_SERVER_FOLDER}/{filename.name}"
-        sftp.put(str(filename), remote_file)
-
-        sftp.close()
-        transport.close()
-        print(f"Copied to home server: {remote_file}")
-
-    except Exception as error:
-        print(f"Home-server upload failed: {error}")
+    print(f"Saved best visit image: {filename}")
 
     last_saved = time.time()
 
@@ -131,7 +118,7 @@ try:
 
         # YOLO works faster on a smaller copy; display remains reasonably clear.
         inference_frame = cv2.resize(frame, (1280, 960))
-        results = model(inference_frame, conf=0.75, verbose=False)
+        results = model(inference_frame, conf=CONFIDENCE_THRESHOLD, verbose=False)
         annotated_frame = results[0].plot()
 
         best_current_detection = None
@@ -141,7 +128,7 @@ try:
             label = model.names[class_id]
             confidence = float(box.conf[0])
 
-            if label not in INTERESTING_CLASSES or confidence < 0.75:
+            if label not in INTERESTING_CLASSES or confidence < CONFIDENCE_THRESHOLD:
                 continue
 
             x1, y1, x2, y2 = box.xyxy[0].tolist()
@@ -186,17 +173,18 @@ try:
             and now - last_saved >= SAVE_COOLDOWN_SECONDS
         ):
             print(f"Visit ended: saving best {active_visit['label']} image.")
-            save_and_upload(
+            save_visit_image(
                 active_visit["best_frame"],
                 active_visit["label"],
                 active_visit["confidence"],
             )
             active_visit = None
 
-        cv2.imshow("Camera — YOLO", annotated_frame)
+        if SHOW_WINDOW:
+            cv2.imshow("Camera — YOLO", annotated_frame)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
 
 finally:
     camera.stop()
