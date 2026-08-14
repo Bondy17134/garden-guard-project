@@ -88,9 +88,38 @@ snapshots_dir.mkdir(parents=True, exist_ok=True)
 last_saved = 0
 SAVE_COOLDOWN_SECONDS = 30
 INTERESTING_CLASSES = {"person"}
+VISIT_END_SECONDS = 3
+active_visit = None
 
 model = YOLO("yolo11n.pt")
 camera = LatestFrameCamera(rtsp)
+
+def save_and_upload(image, label, confidence):
+    global last_saved
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = snapshots_dir / f"{timestamp}_{label}_{confidence:.2f}.jpg"
+
+    cv2.imwrite(str(filename), image)
+    print(f"Saved best visit image locally: {filename}")
+
+    try:
+        transport = paramiko.Transport((HOME_SERVER_HOST, 22))
+        private_key = paramiko.Ed25519Key.from_private_key_file(HOME_SERVER_KEY)
+        transport.connect(username=HOME_SERVER_USER, pkey=private_key)
+
+        sftp = paramiko.SFTPClient.from_transport(transport)
+        remote_file = f"{HOME_SERVER_FOLDER}/{filename.name}"
+        sftp.put(str(filename), remote_file)
+
+        sftp.close()
+        transport.close()
+        print(f"Copied to home server: {remote_file}")
+
+    except Exception as error:
+        print(f"Home-server upload failed: {error}")
+
+    last_saved = time.time()
 
 try:
     while True:
@@ -105,48 +134,64 @@ try:
         results = model(inference_frame, conf=0.75, verbose=False)
         annotated_frame = results[0].plot()
 
-        
+        best_current_detection = None
+
         for box in results[0].boxes:
             class_id = int(box.cls[0])
             label = model.names[class_id]
             confidence = float(box.conf[0])
 
+            if label not in INTERESTING_CLASSES or confidence < 0.75:
+                continue
+
             x1, y1, x2, y2 = box.xyxy[0].tolist()
-            frame_width = inference_frame.shape[1]
-            object_center_x = (x1 + x2) / 2
+            box_area = (x2 - x1) * (y2 - y1)
+            score = box_area * confidence
 
             if (
-                label in INTERESTING_CLASSES
-                and confidence >= 0.65
-                and time.time() - last_saved >= SAVE_COOLDOWN_SECONDS
-                and frame_width * 0.2 < object_center_x < frame_width * 0.8
+                best_current_detection is None
+                or score > best_current_detection["score"]
             ):
-                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                filename = snapshots_dir / f"{timestamp}_{label}_{confidence:.2f}.jpg"
+                best_current_detection = {
+                    "label": label,
+                    "confidence": confidence,
+                    "score": score,
+                }
 
-                cv2.imwrite(str(filename), annotated_frame)
-                print(f"Saved locally: {filename}")
+        now = time.time()
 
-                try:
-                    transport = paramiko.Transport((HOME_SERVER_HOST, 22))
-                    private_key = paramiko.Ed25519Key.from_private_key_file(HOME_SERVER_KEY)
-                    transport.connect(username=HOME_SERVER_USER, pkey=private_key)
+        if best_current_detection is not None:
+            if active_visit is None:
+                active_visit = {
+                    "last_seen": now,
+                    "label": best_current_detection["label"],
+                    "confidence": best_current_detection["confidence"],
+                    "score": best_current_detection["score"],
+                    "best_frame": annotated_frame.copy(),
+                }
+                print(f"Visit started: {best_current_detection['label']}")
 
-                    sftp = paramiko.SFTPClient.from_transport(transport)
-                    remote_file = f"{HOME_SERVER_FOLDER}/{filename.name}"
-                    sftp.put(str(filename), remote_file)
+            else:
+                active_visit["last_seen"] = now
 
-                    sftp.close()
-                    transport.close()
+                if best_current_detection["score"] > active_visit["score"]:
+                    active_visit["label"] = best_current_detection["label"]
+                    active_visit["confidence"] = best_current_detection["confidence"]
+                    active_visit["score"] = best_current_detection["score"]
+                    active_visit["best_frame"] = annotated_frame.copy()
 
-                    print(f"Copied to home server: {remote_file}")
-
-                except Exception as error:
-                    print(f"Home-server upload failed: {error}")
-
-                last_saved = time.time()
-                break
-
+        elif (
+            active_visit is not None
+            and now - active_visit["last_seen"] >= VISIT_END_SECONDS
+            and now - last_saved >= SAVE_COOLDOWN_SECONDS
+        ):
+            print(f"Visit ended: saving best {active_visit['label']} image.")
+            save_and_upload(
+                active_visit["best_frame"],
+                active_visit["label"],
+                active_visit["confidence"],
+            )
+            active_visit = None
 
         cv2.imshow("Camera — YOLO", annotated_frame)
 
