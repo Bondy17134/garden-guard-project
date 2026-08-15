@@ -172,7 +172,7 @@ try:
                     "label": best_current_detection["label"],
                     "confidence": best_current_detection["confidence"],
                     "score": best_current_detection["score"],
-                    "best_frame": annotated_frame.copy(),
+                    "best_frame": inference_frame.copy(),
                 }
                 print(f"Visit started: {best_current_detection['label']}")
 
@@ -183,7 +183,7 @@ try:
                     active_visit["label"] = best_current_detection["label"]
                     active_visit["confidence"] = best_current_detection["confidence"]
                     active_visit["score"] = best_current_detection["score"]
-                    active_visit["best_frame"] = annotated_frame.copy()
+                    active_visit["best_frame"] = inference_frame.copy()
 
         elif (
             active_visit is not None

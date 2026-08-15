@@ -14,6 +14,8 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY camera ./camera
+COPY scripts ./scripts
+COPY dataset/garden_animals.yaml ./dataset/garden_animals.yaml
 RUN python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')"
 
 CMD ["python", "camera/rtsp.py"]

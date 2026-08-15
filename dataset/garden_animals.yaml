@@ -1,0 +1,9 @@
+# Run scripts/train.py from the project root. Image and label folders are ignored by Git.
+path: dataset
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: bush_turkey
+  1: possum

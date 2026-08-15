@@ -35,6 +35,25 @@ docker run --rm --gpus all nvidia/cuda:12.9.0-base-ubuntu22.04 nvidia-smi
 
 After deployment, `docker compose logs garden-guard` must report `YOLO is running on GPU:`. If you deliberately run without a GPU, set `YOLO_DEVICE=cpu`; otherwise the service exits rather than silently falling back to CPU.
 
+## Train a species-specific model
+
+The default model recognises broad categories only. To train `bush_turkey` and `possum`, follow the dataset setup in [`dataset/README.md`](dataset/README.md), then train on a GPU-equipped machine:
+
+```bash
+python scripts/train.py --epochs 100 --imgsz 960 --device 0
+```
+
+The best model is written to `runs/garden_animals/weights/best.pt`. Test it on held-out day and infrared-night footage before making it the live detector.
+
+On the GPU home server, run the same training command in the project container after placing the labelled dataset in `dataset/`:
+
+```bash
+docker compose run --rm \
+  -v ./dataset:/app/dataset \
+  -v ./runs:/app/runs \
+  garden-guard python scripts/train.py --epochs 100 --imgsz 960 --device 0
+```
+
 ## GitHub Actions deployment
 
 The workflow validates Python, builds the container, then deploys only pushes to `main`. Deployment uses a self-hosted GitHub Actions runner on the home server, so no SSH port forwarding or public server address is needed.

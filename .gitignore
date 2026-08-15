@@ -6,3 +6,6 @@ Ultralytics/
 yolo11n.pt
 __pycache__/
 storage/
+dataset/images/
+dataset/labels/
+runs/
