@@ -18,6 +18,23 @@ The Compose service uses `restart: unless-stopped`, so Docker starts it again af
 
 Set `INTERESTING_CLASSES` in `.env` to the labels you want. The supplied model has broad COCO labels (such as `bird`, `cat`, and `dog`); it does not identify individual bird species. Set `SHOW_WINDOW=false` on the server.
 
+### NVIDIA GPU
+
+Garden Guard is configured to require GPU `0` (`YOLO_DEVICE=0`). Install the NVIDIA driver and NVIDIA Container Toolkit on the server, then configure Docker and restart it:
+
+```bash
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+Verify that Docker can access the GPU before deploying:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.9.0-base-ubuntu22.04 nvidia-smi
+```
+
+After deployment, `docker compose logs garden-guard` must report `YOLO is running on GPU:`. If you deliberately run without a GPU, set `YOLO_DEVICE=cpu`; otherwise the service exits rather than silently falling back to CPU.
+
 ## GitHub Actions deployment
 
 The workflow validates Python, builds the container, then deploys only pushes to `main`. Deployment uses a self-hosted GitHub Actions runner on the home server, so no SSH port forwarding or public server address is needed.

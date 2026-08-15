@@ -9,6 +9,7 @@ from urllib.parse import quote
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 
 import cv2
+import torch
 from dotenv import load_dotenv
 
 # Keep model-library settings and caches inside this project.
@@ -92,7 +93,19 @@ INTERESTING_CLASSES = {
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
 VISIT_END_SECONDS = float(os.getenv("VISIT_END_SECONDS", "3"))
 SHOW_WINDOW = os.getenv("SHOW_WINDOW", "false").lower() == "true"
+YOLO_DEVICE = os.getenv("YOLO_DEVICE", "0")
 active_visit = None
+
+if YOLO_DEVICE != "cpu" and not torch.cuda.is_available():
+    raise RuntimeError(
+        "YOLO_DEVICE requests a GPU, but PyTorch cannot access CUDA. "
+        "Check the NVIDIA Container Toolkit and Docker GPU configuration."
+    )
+
+if YOLO_DEVICE == "cpu":
+    print("YOLO is running on CPU.")
+else:
+    print(f"YOLO is running on GPU: {torch.cuda.get_device_name(0)}")
 
 model = YOLO(os.getenv("YOLO_MODEL", "yolo11n.pt"))
 camera = LatestFrameCamera(rtsp)
@@ -118,7 +131,12 @@ try:
 
         # YOLO works faster on a smaller copy; display remains reasonably clear.
         inference_frame = cv2.resize(frame, (1280, 960))
-        results = model(inference_frame, conf=CONFIDENCE_THRESHOLD, verbose=False)
+        results = model(
+            inference_frame,
+            conf=CONFIDENCE_THRESHOLD,
+            device=YOLO_DEVICE,
+            verbose=False,
+        )
         annotated_frame = results[0].plot()
 
         best_current_detection = None
