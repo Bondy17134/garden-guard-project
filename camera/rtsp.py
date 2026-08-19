@@ -77,7 +77,9 @@ if not all([username, password, camera_ip]):
 
 rtsp = f"rtsp://{username}:{password}@{camera_ip}:554/h264Preview_01_main"
 
-snapshots_dir = project_dir / "storage" / "images"
+snapshots_dir = Path(
+    os.getenv("DETECTIONS_DIR", str(project_dir / "storage" / "images"))
+)
 snapshots_dir.mkdir(parents=True, exist_ok=True)
 
 last_saved = 0
@@ -113,10 +115,15 @@ camera = LatestFrameCamera(rtsp)
 def save_visit_image(image, label, confidence):
     global last_saved
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = snapshots_dir / f"{timestamp}_{label}_{confidence:.2f}.jpg"
+    now = datetime.now()
+    date_folder = snapshots_dir / f"{now.day}.{now.month}.{now:%y}"
+    date_folder.mkdir(parents=True, exist_ok=True)
+    filename = date_folder / f"{now:%H-%M-%S}_{label}_{confidence:.2f}.jpg"
 
-    cv2.imwrite(str(filename), image)
+    if not cv2.imwrite(str(filename), image):
+        print(f"Could not save visit image: {filename}")
+        return
+
     print(f"Saved best visit image: {filename}")
 
     last_saved = time.time()
