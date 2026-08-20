@@ -18,6 +18,8 @@ The Compose service uses `restart: unless-stopped`, so Docker starts it again af
 
 Set `INTERESTING_CLASSES` in `.env` to the labels you want. The supplied model has broad COCO labels (such as `bird`, `cat`, and `dog`); it does not identify individual bird species. Set `SHOW_WINDOW=false` on the server.
 
+If RTSP logs show repeated H.264 decoding errors or stream timeouts, set `CAMERA_STREAM=sub` in the server `.env`. The Reolink sub-stream uses less bandwidth and is usually more stable for 24/7 detection. Change it back to `main` only after the main stream is stable.
+
 ### Save detections to a Windows PC
 
 A Linux server cannot write directly to a Windows `C:` drive. Share the Windows folder `C:\Users\kunan\OneDrive\Documents\Garden Guard\Detections` as `GardenGuardDetections`, then mount that share on the Linux server. The application writes each image into a date folder such as `19.8.26`.

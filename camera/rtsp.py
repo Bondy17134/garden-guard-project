@@ -75,7 +75,12 @@ camera_ip = os.getenv("CAMERA_IP")
 if not all([username, password, camera_ip]):
     raise ValueError("Missing camera credentials or IP address in .env file.")
 
-rtsp = f"rtsp://{username}:{password}@{camera_ip}:554/h264Preview_01_main"
+camera_stream = os.getenv("CAMERA_STREAM", "main").strip().lower()
+if camera_stream not in {"main", "sub"}:
+    raise ValueError("CAMERA_STREAM must be 'main' or 'sub'.")
+
+rtsp = f"rtsp://{username}:{password}@{camera_ip}:554/h264Preview_01_{camera_stream}"
+print(f"Using Reolink {camera_stream} RTSP stream.")
 
 snapshots_dir = Path(
     os.getenv("DETECTIONS_DIR", str(project_dir / "storage" / "images"))
