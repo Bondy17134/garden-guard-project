@@ -57,6 +57,16 @@ python scripts/train.py --epochs 100 --imgsz 960 --device 0
 
 The best model is written to `runs/garden_animals/weights/best.pt`. Test it on held-out day and infrared-night footage before making it the live detector.
 
+To temporarily run a locally trained model in the live detector, keep its weights under the server's `runs/` directory and update the server-only `.env` file. For example:
+
+```text
+YOLO_MODEL=/app/runs/bush_turkey_v1/weights/best.pt
+INTERESTING_CLASSES=bush_turkey
+CONFIDENCE_THRESHOLD=0.35
+```
+
+Then recreate the service with `docker compose up -d --force-recreate`. The `runs/` directory is mounted read-only into the detector container and is excluded from Git, so the model stays on the server. To switch back to the supplied general model, set `YOLO_MODEL=yolo11n.pt` and restore the broader `INTERESTING_CLASSES` list.
+
 On the GPU home server, run the same training command in the project container after placing the labelled dataset in `dataset/`:
 
 ```bash

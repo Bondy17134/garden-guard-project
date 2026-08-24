@@ -7,6 +7,9 @@ services:
       - .env
     volumes:
       - ./storage:/app/storage
+      # Training results remain on the Linux server and can be selected with
+      # YOLO_MODEL in .env without putting model weights in Git.
+      - ./runs:/app/runs:ro
     deploy:
       resources:
         reservations:
