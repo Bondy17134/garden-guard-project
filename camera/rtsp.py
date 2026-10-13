@@ -5,17 +5,21 @@ import threading
 from pathlib import Path
 from urllib.parse import quote
 
-# Must be set BEFORE importing cv2.
+# tell OpenCV's FFmpeg backend to use TCP for RTSP streaming
+# set this before importing OpenCV
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 
 import cv2
 import torch
 from dotenv import load_dotenv
 
-# Keep model-library settings and caches inside this project.
+# get the project root: the parent of the directory containing this script
 project_dir = Path(__file__).resolve().parents[1]
+
+# create a local directory for Matplotlib configuration and cache files
 (project_dir / ".matplotlib").mkdir(exist_ok=True)
 
+# use project-local configuration directories unless already set externally
 os.environ.setdefault("YOLO_CONFIG_DIR", str(project_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(project_dir / ".matplotlib"))
 
@@ -23,17 +27,35 @@ from ultralytics import YOLO
 
 
 class LatestFrameCamera:
+    """ Read camera frames in a background thread, keeping only the lastest one """
     def __init__(self, stream_url):
         self.stream_url = stream_url
         self.frame = None
+
+        # prevent the camera thread and main thread from accessing
+        # the shared frame at the same time
         self.lock = threading.Lock()
+
+        # control whether the background capture loop should keep running
         self.running = True
-        self.thread = threading.Thread(target=self._read_frames, daemon=True)
+
+        # start reading immediately 
+        # a daemon thread does not keep the process alive by itself
+        self.thread = threading.Thread(
+            target=self._read_frames, 
+            daemon=True
+        )
         self.thread.start()
 
     def _read_frames(self):
+        """ Connect to the camera and reconnect when the stream fails """
+
         while self.running:
+            # open the RTSP stream using OpenCV's FFmpeg backend
             cap = cv2.VideoCapture(self.stream_url, cv2.CAP_FFMPEG)
+
+            # request a small capture buffer to reduce delay
+            # support for this setting depends on the backend
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
             if not cap.isOpened():
@@ -44,6 +66,7 @@ class LatestFrameCamera:
             print("RTSP connected using TCP.")
 
             while self.running:
+                # ret indicates whether a frame was read successfully
                 ret, frame = cap.read()
 
                 if not ret:
@@ -54,6 +77,7 @@ class LatestFrameCamera:
                 with self.lock:
                     self.frame = frame
 
+            # release the connection before attempting to reconnect
             cap.release()
             time.sleep(2)
 
