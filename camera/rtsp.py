@@ -82,27 +82,35 @@ class LatestFrameCamera:
             time.sleep(2)
 
     def get_latest_frame(self):
+        """ Return an independent copy of the latest available frame """
+
         with self.lock:
+            # return None untill the camera has captured its first frame
             return None if self.frame is None else self.frame.copy()
 
     def stop(self):
+        """ request capture shutdown and wait up to the three seconds. """
         self.running = False
         self.thread.join(timeout=3)
 
-
+# load setting from a .env file into environment variables 
 load_dotenv()
 
+# encode special characters in credentials so they can be used in a URL
 username = quote(os.getenv("CAMERA_USERNAME"), safe="")
 password = quote(os.getenv("CAMERA_PASSWORD"), safe="")
 camera_ip = os.getenv("CAMERA_IP")
 
+# check that the required connection settings are present
 if not all([username, password, camera_ip]):
     raise ValueError("Missing camera credentials or IP address in .env file.")
 
+# select the camera stream, defaulting to the main stream
 camera_stream = os.getenv("CAMERA_STREAM", "main").strip().lower()
 if camera_stream not in {"main", "sub"}:
     raise ValueError("CAMERA_STREAM must be 'main' or 'sub'.")
 
+# construct the Reolink RTSP URL using the selected stream
 rtsp = f"rtsp://{username}:{password}@{camera_ip}:554/h264Preview_01_{camera_stream}"
 print(f"Using Reolink {camera_stream} RTSP stream.")
 

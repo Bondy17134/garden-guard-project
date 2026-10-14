@@ -1,0 +1,1 @@
+# saves image files into date/animal folders
