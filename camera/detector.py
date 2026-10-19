@@ -1,4 +1,20 @@
+import os
+from pathlib import Path
+import torch 
+from datetime import datetime
+import time 
+import cv2
+from ultralytics import YOLO 
+
+from config import username, password, camera_ip
+
+from stream import LatestFrameCamera
+
+
 # loads YOLO and returns relevant detections
+
+# get the project root: the parent of the directory containing this script
+project_dir = Path(__file__).resolve().parents[1]
 
 # select the camera stream, defaulting to the main stream
 camera_stream = os.getenv("CAMERA_STREAM", "main").strip().lower()
