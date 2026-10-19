@@ -44,6 +44,7 @@ class LatestFrameCamera:
 
             if not cap.isOpened():
                 print("Could not connect — retrying in 2 seconds...")
+                cap.release()
                 time.sleep(2)
                 continue
 

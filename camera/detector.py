@@ -11,7 +11,7 @@ from config import username, password, camera_ip
 from stream import LatestFrameCamera
 
 
-# loads YOLO and returns relevant detections
+""" loads YOLO and returns relevant detections """
 
 # get the project root: the parent of the directory containing this script
 project_dir = Path(__file__).resolve().parents[1]
