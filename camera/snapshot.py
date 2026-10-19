@@ -4,6 +4,9 @@ from datetime import datetime # generate timestamps for saved images
 import time # track time between snapshots
 import cv2 # process and save images using OpenCV
 
+from saving_images import inference_frame
+from detector import model
+
 # get the project root (two directory levels about this file)
 project_dir = Path(__file__).resolve().parents[1]
 
