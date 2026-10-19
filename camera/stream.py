@@ -1,5 +1,15 @@
 # LatestFrameCamera and RTSP reconnect logic
 
+import threading
+import time
+import os
+
+# tell OpenCV's FFmpeg backend to use TCP for RTSP streaming
+# set this before importing OpenCV
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+
+import cv2
+
 class LatestFrameCamera:
     """ Read camera frames in a background thread, keeping only the lastest one """
     def __init__(self, stream_url):
@@ -34,6 +44,7 @@ class LatestFrameCamera:
 
             if not cap.isOpened():
                 print("Could not connect — retrying in 2 seconds...")
+                cap.release()
                 time.sleep(2)
                 continue
 
