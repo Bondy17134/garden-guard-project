@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     aws = {
-        source = "hashicorp/aws"
-        version = "~> 6.0"
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
     }
   }
 }
@@ -14,10 +14,10 @@ provider "aws" {
 
 # AWS S3 
 resource "aws_s3_bucket" "garden_guard" {
-  bucket_prefix = "garden-gaurd-images-"
+  bucket_prefix = "garden-guard-images-"
 
   tags = {
-    Project = "GardenGuard"
+    Project   = "GardenGuard"
     ManagedBy = "Terraform"
   }
 }

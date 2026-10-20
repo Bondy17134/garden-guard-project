@@ -1,11 +1,56 @@
+
+# ==============================
+# Python
+# ==============================
 .venv/
-.env
-.ultralytics/
-.matplotlib/
-Ultralytics/
-yolo11n.pt
+venv/
 __pycache__/
-storage/
-dataset/images/
-dataset/labels/
-runs/
+*.py[cod]
+.pytest_cache/
+
+# ==============================
+# Environment variables / Secrets
+# ==============================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ==============================
+# Terraform
+# ==============================
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+.terraform.tfstate.lock.info
+
+# ==============================
+# Garden Guard local data
+# ==============================
+captures/
+detections/
+logs/
+*.log
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# ==============================
+# IDE / OS
+# ==============================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
