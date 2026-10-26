@@ -6,7 +6,7 @@ logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
     logger.info("Garden Guard Lambda invoked")
-    logger.info("Event: %s", json.dump(event))
+    logger.info("Event: %s", json.dumps(event))
 
     return {
         "statusCode": 200,
