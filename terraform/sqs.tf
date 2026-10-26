@@ -36,3 +36,8 @@ resource "aws_sqs_queue_redrive_allow_policy" "image_dlq" {
     sourceQueueArns   = [aws_sqs_queue.image_processing.arn]
   })
 }
+
+resource "aws_sqs_queue_policy" "allow_s3" {
+  queue_url = aws_sqs_queue.image_processing.id
+  policy    = data.aws_iam_policy_document.s3_to_sqs.json
+}
