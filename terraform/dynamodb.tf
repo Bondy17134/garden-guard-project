@@ -23,9 +23,9 @@ resource "aws_dynamodb_table" "image_metadata" {
   }
 
   tags = {
-    Project = "GardenGuard"
+    Project     = "GardenGuard"
     Environment = "Development"
-    ManagedBy = "Terraform"
+    ManagedBy   = "Terraform"
   }
 }
 
