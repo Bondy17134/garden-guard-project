@@ -49,6 +49,13 @@ resource "aws_lambda_function" "image_processor" {
     Project = "GardenGuard"
     Sprint  = "Sprint1"
   }
+
+  # Make table name available in Python function without hardcoding it
+  environment {
+    variables = {
+      DYNAMODB_TABLE = aws_dynamodb_table.image_metadata.name
+    }
+  }
 }
 
 # Manage Lambda log retention
