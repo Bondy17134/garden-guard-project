@@ -17,17 +17,23 @@ table = dynamodb.Table(os.environ["DYNAMODB_TABLE"])
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
 
 def lambda_handler(event, context):
+    # Get the S3 object key and bucket name from the SQS event
     for sqs_record in event.get("Records", []):
+        # Parse the SQS message body as JSON
         body = json.loads(sqs_record["body"])
 
+        # Get the S3 object key and bucket name from the S3 event
         for s3_record in body.get("Records", []):
+            # Get the S3 bucket name and object key
             bucket = s3_record["s3"]["bucket"]["name"]
+            # Get the S3 object key and decode it
             key = unquote_plus(
                 s3_record["s3"]["object"]["key"]
             )
 
+            # Skip non-image files based on the file extension
             if not key.lower().endswith(IMAGE_EXTENSIONS):
-                logger.info("Skipping non-image: %s, key")
+                logger.info("Skipping non-image: %s", key)
                 continue
 
             # Stable identifier for an S3 object key
@@ -35,10 +41,12 @@ def lambda_handler(event, context):
                 f"{bucket}/{key}".encode("utf-8")
             ).hexdigest()
 
+            # Get the current timestamp in ISO 8601 format
             timestamp = datetime.now(
                 timezone.utc
             ).isoformat()
 
+            # Prepare the item to be saved in DynamoDB
             item = {
                 "image_id": image_id,
                 "s3_bucket": bucket,
@@ -49,6 +57,7 @@ def lambda_handler(event, context):
             }
 
             try:
+                # Save the item to DynamoDB with a conditional expression to avoid duplicates
                 table.put_item(
                     Item=item,
                     ConditionExpression=(
